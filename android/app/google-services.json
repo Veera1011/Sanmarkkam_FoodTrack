@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "804207222477",
+    "project_id": "sanmarkkamfoodtrack-a0da7",
+    "storage_bucket": "sanmarkkamfoodtrack-a0da7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:804207222477:android:e54c3cc4e6a79c34451384",
+        "android_client_info": {
+          "package_name": "com.sanmarkkam.org"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAwsDLXqoo6NPApi-Uet8NLBL2kVSD3dLI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
