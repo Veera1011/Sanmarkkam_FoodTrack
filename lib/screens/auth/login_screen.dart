@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
-import 'register_screen.dart';
+import '../home/dashboard_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -34,10 +34,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _emailController.text.trim(),
         _passwordController.text,
       );
+
+      // Successfully logged in, navigate to dashboard
+      if (mounted) {
+        // Pop all routes and push dashboard
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+              (route) => false,
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -62,7 +74,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     'assets/images/sanmarkkam-logo1.png',
                     height: 80,
                   ),
-
                   const SizedBox(height: 16),
                   Text(
                     'Sanmarkkam FoodTrack',
@@ -115,19 +126,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ? const SizedBox(
                       height: 20,
                       width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
                         : const Text('Sign In'),
                   ),
                   const SizedBox(height: 16),
-                  // TextButton(
-                  //   onPressed: () {
-                  //     Navigator.of(context).push(
-                  //       MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                  //     );
-                  //   },
-                  //   child: const Text('Don\'t have an account? Register'),
-                  // ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text('← Back to Home'),
+                  ),
                 ],
               ),
             ),

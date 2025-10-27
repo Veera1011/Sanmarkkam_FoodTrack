@@ -20,6 +20,11 @@ class FirestoreService {
     await _itemsCollection(userId).add(item.toMap());
   }
 
+  // Update existing food item
+  Future<void> updateItem(String userId, FoodItem item) async {
+    await _itemsCollection(userId).doc(item.id).update(item.toMap());
+  }
+
   // Get all items stream
   Stream<List<FoodItem>> getItems(String userId) {
     return _itemsCollection(userId)
@@ -71,7 +76,6 @@ class FirestoreService {
   }
 
   // Get usage for a date range
-  // Get usage for a date range
   Stream<List<UsageEntry>> getUsageByDateRange(
       String userId,
       DateTime startDate,
@@ -79,7 +83,6 @@ class FirestoreService {
       ) {
     print('🔍 Querying usage from $startDate to $endDate');
 
-    // Ensure we have proper timestamps
     final startTimestamp = Timestamp.fromDate(startDate);
     final endTimestamp = Timestamp.fromDate(endDate);
 
@@ -106,7 +109,6 @@ class FirestoreService {
         }
       }).toList();
 
-      // Sort by date to ensure proper ordering
       entries.sort((a, b) => b.dateUsed.compareTo(a.dateUsed));
 
       return entries;
@@ -115,13 +117,11 @@ class FirestoreService {
 
   // Calculate remaining quantity for an item
   Future<double> getRemainingQuantity(String userId, String itemId) async {
-    // Get the item
     final itemDoc = await _itemsCollection(userId).doc(itemId).get();
     if (!itemDoc.exists) return 0;
 
     final item = FoodItem.fromFirestore(itemDoc);
 
-    // Get all usage for this item
     final usageSnapshot = await _usageCollection(userId)
         .where('itemId', isEqualTo: itemId)
         .get();
@@ -138,5 +138,4 @@ class FirestoreService {
 
     return item.quantityPurchased - totalUsed;
   }
-
 }

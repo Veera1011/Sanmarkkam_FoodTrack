@@ -22,121 +22,123 @@ class LandingScreen extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Hero Section
+            // Header with Logo and Login
             Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFDB813),
+              color: Colors.white,
+              padding: EdgeInsets.symmetric(
+                horizontal: isLargeScreen ? 80 : 24,
+                vertical: 20,
               ),
               child: SafeArea(
                 bottom: false,
-                child: Column(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const SizedBox(height: 60),
-                    Image.asset(
-                      'assets/images/sanmarkkam-logo1.png',
-                      height: isLargeScreen ? 140 : 100,
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'SANMARKKAM',
-                      style: TextStyle(
-                        fontSize: 42,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: 2,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 32),
-                      child: Text(
-                        'Empowering Lives Through Education & Service',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
-                          height: 1.4,
+                    Row(
+                      children: [
+                        Image.asset(
+                          'assets/images/sanmarkkam-logo1.png',
+                          height: 50,
                         ),
-                        textAlign: TextAlign.center,
+                        const SizedBox(width: 12),
+                        Text(
+                          'SANMARKKAM',
+                          style: TextStyle(
+                            fontSize: isLargeScreen ? 24 : 20,
+                            fontWeight: FontWeight.w900,
+                            color: const Color(0xFFFDB813),
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFDB813),
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isLargeScreen ? 32 : 24,
+                          vertical: isLargeScreen ? 16 : 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        elevation: 0,
+                      ),
+                      icon: const Icon(Icons.login, size: 20),
+                      label: const Text(
+                        'STAFF LOGIN',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 60),
                   ],
                 ),
               ),
             ),
 
-            // Mission Section
+            // Hero Section
             Container(
-              color: Colors.white,
+              width: double.infinity,
+              color: const Color(0xFFFFFBF0),
               padding: EdgeInsets.symmetric(
-                horizontal: isLargeScreen ? 80 : 24,
-                vertical: 60,
+                horizontal: isLargeScreen ? 120 : 32,
+                vertical: isLargeScreen ? 100 : 60,
               ),
               child: Column(
                 children: [
-                  const Text(
-                    'OUR MISSION',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFFFDB813),
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
                   Text(
-                    'A non-profit organization empowering students and graduates through free training, job placement, counseling, career guidance, scholarships, and support for those in need.',
+                    'Empowering Lives Through\nEducation & Service',
                     style: TextStyle(
-                      fontSize: isLargeScreen ? 20 : 17,
-                      color: Colors.grey.shade800,
-                      height: 1.7,
+                      fontSize: isLargeScreen ? 48 : 32,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.grey.shade900,
+                      height: 1.2,
+                      letterSpacing: -0.5,
                     ),
                     textAlign: TextAlign.center,
                   ),
-                ],
-              ),
-            ),
-
-            // Services Section
-            Container(
-              color: Colors.grey.shade50,
-              padding: EdgeInsets.symmetric(
-                horizontal: isLargeScreen ? 80 : 24,
-                vertical: 60,
-              ),
-              child: Column(
-                children: [
-                  const Text(
-                    'WHAT WE DO',
+                  const SizedBox(height: 24),
+                  Text(
+                    'A non-profit organization dedicated to empowering students and graduates through free training, job placement, counseling, career guidance, and support for those in need.',
                     style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFFFDB813),
-                      letterSpacing: 2,
+                      fontSize: isLargeScreen ? 20 : 16,
+                      color: Colors.grey.shade700,
+                      height: 1.6,
                     ),
+                    textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 40),
-                  _ServiceItem(
-                    icon: Icons.school_outlined,
-                    title: 'Student Counselling',
-                    description: 'Scholarships, counselling, and admission guidance - all free of cost for deserving students.',
-                  ),
-                  _ServiceItem(
-                    icon: Icons.work_outline,
-                    title: 'Career Guidance',
-                    description: 'Comprehensive grooming for professionals, graduates, and students to achieve career success.',
-                  ),
-                  _ServiceItem(
-                    icon: Icons.spa_outlined,
-                    title: 'Healthy Living',
-                    description: 'Lifestyle camps with meditation and yoga sessions for self-discovery and wellness.',
-                  ),
-                  _ServiceItem(
-                    icon: Icons.volunteer_activism_outlined,
-                    title: 'Support for the Needy',
-                    description: 'Grocery kits, food, clothing, and essential supplies for those who need it most.',
+                  ElevatedButton(
+                    onPressed: _launchURL,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFDB813),
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isLargeScreen ? 48 : 32,
+                        vertical: isLargeScreen ? 20 : 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      'LEARN MORE',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -147,103 +149,114 @@ class LandingScreen extends StatelessWidget {
               color: Colors.white,
               padding: EdgeInsets.symmetric(
                 horizontal: isLargeScreen ? 80 : 24,
-                vertical: 60,
+                vertical: isLargeScreen ? 80 : 60,
               ),
               child: Column(
                 children: [
-                  const Text(
+                  Text(
                     'OUR IMPACT',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFFFDB813),
+                      color: const Color(0xFFFDB813),
                       letterSpacing: 2,
                     ),
                   ),
                   const SizedBox(height: 40),
                   Wrap(
-                    spacing: 40,
+                    spacing: isLargeScreen ? 80 : 40,
                     runSpacing: 40,
                     alignment: WrapAlignment.center,
                     children: const [
-                      _StatBox(number: '2,368', label: 'Counselling Sessions'),
-                      _StatBox(number: '410', label: 'Training Programs'),
-                      _StatBox(number: '134', label: 'Job Placements'),
+                      _StatBox(number: '2,368', label: 'Counselling\nSessions'),
+                      _StatBox(number: '410', label: 'Training\nPrograms'),
+                      _StatBox(number: '134', label: 'Job\nPlacements'),
                     ],
                   ),
                 ],
               ),
             ),
 
-            // CTA Section
+            // Services Section
             Container(
-              color: const Color(0xFFFDB813),
+              color: const Color(0xFFFFFBF0),
               padding: EdgeInsets.symmetric(
-                horizontal: isLargeScreen ? 80 : 24,
-                vertical: 80,
+                horizontal: isLargeScreen ? 120 : 32,
+                vertical: isLargeScreen ? 80 : 60,
               ),
               child: Column(
                 children: [
-                  const Text(
-                    'FOOD TRACKING SYSTEM',
+                  Text(
+                    'WHAT WE DO',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      color: const Color(0xFFFDB813),
                       letterSpacing: 2,
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Access Our Internal Management System',
+                  const SizedBox(height: 16),
+                  Text(
+                    'Our Core Services',
                     style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      height: 1.3,
+                      fontSize: isLargeScreen ? 36 : 28,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.grey.shade900,
+                      letterSpacing: -0.5,
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 40),
-                  ElevatedButton(
-                    onPressed: () {
-                      // Use push instead of pushReplacement
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFFFDB813),
-                      padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 20),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      elevation: 0,
+                  SizedBox(height: isLargeScreen ? 60 : 40),
+                  _buildServicesGrid(isLargeScreen),
+                ],
+              ),
+            ),
+
+            // Mission Statement
+            Container(
+              color: Colors.white,
+              padding: EdgeInsets.symmetric(
+                horizontal: isLargeScreen ? 120 : 32,
+                vertical: isLargeScreen ? 80 : 60,
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFFBF0),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.arrow_forward, size: 20),
-                        SizedBox(width: 12),
-                        Text(
-                          'LOGIN',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                      ],
+                    child: const Text(
+                      'OUR MISSION',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFFDB813),
+                        letterSpacing: 2,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'For authorized staff members only',
+                  const SizedBox(height: 24),
+                  Text(
+                    'Building a Better Future',
                     style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.white70,
+                      fontSize: isLargeScreen ? 36 : 28,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.grey.shade900,
+                      letterSpacing: -0.5,
                     ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'We are committed to creating opportunities for students and graduates through comprehensive support systems. From scholarships and career guidance to essential supplies for those in need, we believe in empowering every individual to reach their full potential.',
+                    style: TextStyle(
+                      fontSize: isLargeScreen ? 18 : 16,
+                      color: Colors.grey.shade700,
+                      height: 1.8,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),
@@ -251,10 +264,33 @@ class LandingScreen extends StatelessWidget {
 
             // Footer
             Container(
-              color: Colors.grey.shade900,
-              padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
+              color: Colors.grey.shade50,
+              padding: EdgeInsets.symmetric(
+                horizontal: isLargeScreen ? 80 : 24,
+                vertical: 40,
+              ),
               child: Column(
                 children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/images/sanmarkkam-logo1.png',
+                        height: 40,
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'SANMARKKAM',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFFFDB813),
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
                   GestureDetector(
                     onTap: _launchURL,
                     child: const Text(
@@ -267,12 +303,12 @@ class LandingScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   Text(
                     '© 2025 Sanmarkkam.org • All rights reserved',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.grey.shade500,
+                      color: Colors.grey.shade600,
                     ),
                   ),
                 ],
@@ -283,14 +319,44 @@ class LandingScreen extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildServicesGrid(bool isLargeScreen) {
+    return Wrap(
+      spacing: isLargeScreen ? 32 : 16,
+      runSpacing: isLargeScreen ? 32 : 24,
+      alignment: WrapAlignment.center,
+      children: const [
+        _ServiceCard(
+          icon: Icons.school_rounded,
+          title: 'Student Counselling',
+          description: 'Scholarships, counselling, and admission guidance - all free of cost.',
+        ),
+        _ServiceCard(
+          icon: Icons.work_rounded,
+          title: 'Career Guidance',
+          description: 'Comprehensive grooming for professionals and graduates.',
+        ),
+        _ServiceCard(
+          icon: Icons.spa_rounded,
+          title: 'Healthy Living',
+          description: 'Lifestyle camps with meditation and yoga sessions.',
+        ),
+        _ServiceCard(
+          icon: Icons.volunteer_activism_rounded,
+          title: 'Support Services',
+          description: 'Essential supplies for those who need it most.',
+        ),
+      ],
+    );
+  }
 }
 
-class _ServiceItem extends StatelessWidget {
+class _ServiceCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String description;
 
-  const _ServiceItem({
+  const _ServiceCard({
     required this.icon,
     required this.title,
     required this.description,
@@ -298,46 +364,49 @@ class _ServiceItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final isLargeScreen = size.width > 600;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 32),
-      child: Row(
+      width: isLargeScreen ? 260 : size.width - 64,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200, width: 1),
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFFDB813),
+              color: const Color(0xFFFFFBF0),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               icon,
-              color: Colors.white,
+              color: const Color(0xFFFDB813),
               size: 28,
             ),
           ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  description,
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: Colors.grey.shade700,
-                    height: 1.6,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            description,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade700,
+              height: 1.6,
             ),
           ),
         ],
@@ -358,15 +427,15 @@ class _StatBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 140,
+      width: 120,
       child: Column(
         children: [
           Text(
             number,
             style: const TextStyle(
-              fontSize: 48,
+              fontSize: 42,
               fontWeight: FontWeight.w900,
-              color: Color(0xFFFDF113),
+              color: Color(0xFFFDB813),
               height: 1,
             ),
           ),
@@ -374,9 +443,10 @@ class _StatBox extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 13,
               color: Colors.grey.shade700,
               fontWeight: FontWeight.w600,
+              height: 1.3,
             ),
             textAlign: TextAlign.center,
           ),

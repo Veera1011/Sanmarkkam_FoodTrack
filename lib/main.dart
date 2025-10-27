@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'screens/auth/landing_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/dashboard_screen.dart';
 import 'providers/auth_provider.dart';
@@ -29,11 +30,16 @@ void main() async {
   runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends ConsumerWidget {
+class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends ConsumerState<MyApp> {
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
 
     return MaterialApp(
@@ -44,7 +50,12 @@ class MyApp extends ConsumerWidget {
         useMaterial3: true,
       ),
       home: authState.when(
-        data: (user) => user != null ? const DashboardScreen() : const LoginScreen(),
+        data: (user) {
+          print('Auth state changed: user = ${user?.email}');
+          // If user is logged in, show dashboard
+          // If not logged in, show landing page
+          return user != null ? const DashboardScreen() : const LandingScreen();
+        },
         loading: () => const Scaffold(
           body: Center(child: CircularProgressIndicator()),
         ),
