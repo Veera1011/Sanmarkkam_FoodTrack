@@ -43,10 +43,10 @@ class _MyAppState extends ConsumerState<MyApp> {
     final authState = ref.watch(authStateProvider);
 
     return MaterialApp(
-      title: 'Food Inventory Tracker',
+      title: 'Sanmarkkam.org FoodTrack',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.yellow),
         useMaterial3: true,
       ),
       home: authState.when(
