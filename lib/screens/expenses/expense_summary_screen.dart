@@ -41,23 +41,27 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
 
     switch (period) {
       case ExpensePeriod.day:
-        final start = DateTime(now.year, now.month, now.day);
-        final end = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        final start = DateTime(now.year, now.month, now.day, 0, 0, 0);
+        final end = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+        print('📅 Day range: $start to $end');
         return DateRange(start, end);
 
       case ExpensePeriod.month:
-        final start = DateTime(now.year, now.month, 1);
-        final end = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+        final start = DateTime(now.year, now.month, 1, 0, 0, 0);
+        final end = DateTime(now.year, now.month + 1, 0, 23, 59, 59, 999);
+        print('📅 Month range: $start to $end');
         return DateRange(start, end);
 
       case ExpensePeriod.year:
-        final start = DateTime(now.year, 1, 1);
-        final end = DateTime(now.year, 12, 31, 23, 59, 59);
+        final start = DateTime(now.year, 1, 1, 0, 0, 0);
+        final end = DateTime(now.year, 12, 31, 23, 59, 59, 999);
+        print('📅 Year range: $start to $end');
         return DateRange(start, end);
 
       case ExpensePeriod.custom:
-        final start = DateTime(_customStartDate.year, _customStartDate.month, _customStartDate.day);
-        final end = DateTime(_customEndDate.year, _customEndDate.month, _customEndDate.day, 23, 59, 59);
+        final start = DateTime(_customStartDate.year, _customStartDate.month, _customStartDate.day, 0, 0, 0);
+        final end = DateTime(_customEndDate.year, _customEndDate.month, _customEndDate.day, 23, 59, 59, 999);
+        print('📅 Custom range: $start to $end');
         return DateRange(start, end);
     }
   }
@@ -156,6 +160,7 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
         Expanded(
           child: usageAsync.when(
             data: (entries) {
+              print('✅ Loaded ${entries.length} entries for display');
               return itemsAsync.when(
                 data: (items) => _buildExpenseContent(entries, items, period, dateRange),
                 loading: () => const Center(child: CircularProgressIndicator()),
@@ -163,7 +168,18 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, s) => Center(child: Text('Error loading expenses: $e')),
+            error: (e, s) => Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text('Error loading expenses: $e'),
+                  const SizedBox(height: 8),
+                  Text('Stack: $s', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                ],
+              ),
+            ),
           ),
         ),
       ],
@@ -228,6 +244,11 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
             Icon(Icons.receipt_long_outlined, size: 80, color: Colors.grey[400]),
             const SizedBox(height: 16),
             const Text('No expenses in this period', style: TextStyle(fontSize: 18)),
+            const SizedBox(height: 8),
+            Text(
+              'Try selecting a different date range',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
           ],
         ),
       );
@@ -290,25 +311,45 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
       (productExpenses[item.id]!['entries'] as List<UsageEntry>).add(entry);
     }
 
-    // Daily expenses for trend chart
+    // Daily expenses for trend chart - use proper date formatting
     final Map<String, double> dailyExpenses = {};
     for (final entry in entries) {
-      final dateKey = DateFormat('dd MMM').format(entry.dateUsed);
+      // Create a normalized date key (without time component)
+      final date = DateTime(entry.dateUsed.year, entry.dateUsed.month, entry.dateUsed.day);
+      final dateKey = DateFormat('dd MMM').format(date);
       dailyExpenses[dateKey] = (dailyExpenses[dateKey] ?? 0) + entry.expense;
     }
 
     // Sort daily expenses by date
-    final sortedDailyExpenses = Map.fromEntries(
-        dailyExpenses.entries.toList()..sort((a, b) => a.key.compareTo(b.key))
-    );
+    final sortedEntries = dailyExpenses.entries.toList();
+    // Parse dates back for sorting
+    sortedEntries.sort((a, b) {
+      try {
+        final dateA = DateFormat('dd MMM').parse(a.key);
+        final dateB = DateFormat('dd MMM').parse(b.key);
+        return dateA.compareTo(dateB);
+      } catch (e) {
+        return a.key.compareTo(b.key);
+      }
+    });
+    final sortedDailyExpenses = Map.fromEntries(sortedEntries);
+
+    final avgExpense = dailyExpenses.isEmpty ? 0.0 : totalExpense / dailyExpenses.length;
+    final maxExpense = dailyExpenses.values.isEmpty ? 0.0 : dailyExpenses.values.reduce((a, b) => a > b ? a : b);
+
+    print('💰 Summary calculated:');
+    print('   Total: ₹$totalExpense');
+    print('   Transactions: ${entries.length}');
+    print('   Daily entries: ${dailyExpenses.length}');
+    print('   Products: ${productExpenses.length}');
 
     return {
       'totalExpense': totalExpense,
       'totalTransactions': entries.length,
       'productExpenses': productExpenses,
       'dailyExpenses': sortedDailyExpenses,
-      'averageExpense': totalExpense / (dailyExpenses.length > 0 ? dailyExpenses.length : 1),
-      'maxDailyExpense': dailyExpenses.values.isEmpty ? 0 : dailyExpenses.values.reduce((a, b) => a > b ? a : b),
+      'averageExpense': avgExpense,
+      'maxDailyExpense': maxExpense,
     };
   }
 
@@ -555,6 +596,10 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
     final dateFormat = DateFormat('dd MMM yyyy HH:mm');
     final currencyFormat = NumberFormat.currency(symbol: '₹');
 
+    // Sort entries by date (most recent first)
+    final sortedEntries = List<UsageEntry>.from(entries)
+      ..sort((a, b) => b.dateUsed.compareTo(a.dateUsed));
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -572,7 +617,7 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
               ],
             ),
             const SizedBox(height: 16),
-            ...entries.map((entry) {
+            ...sortedEntries.map((entry) {
               final item = items.firstWhere(
                     (i) => i.id == entry.itemId,
                 orElse: () => FoodItem(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../models/food_item.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/items_provider.dart';
@@ -37,7 +38,16 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
       lastDate: DateTime.now(),
     );
     if (picked != null) {
-      setState(() => _selectedDate = picked);
+      setState(() {
+        _selectedDate = picked;
+        // Re-check if item exists in new month
+        if (_nameController.text.isNotEmpty) {
+          final itemsAsync = ref.read(itemsProvider);
+          itemsAsync.whenData((items) {
+            _onNameChanged(_nameController.text, items);
+          });
+        }
+      });
     }
   }
 
@@ -45,6 +55,10 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     final quantity = double.tryParse(_quantityController.text) ?? 0;
     final price = double.tryParse(_priceController.text) ?? 0;
     return quantity * price;
+  }
+
+  bool _isSameMonth(DateTime date1, DateTime date2) {
+    return date1.year == date2.year && date1.month == date2.month;
   }
 
   void _onNameChanged(String name, List<FoodItem> items) {
@@ -56,9 +70,10 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
       return;
     }
 
-    // Check if item with this name already exists (case-insensitive)
+    // Check if item with this name exists IN THE SAME MONTH (case-insensitive)
     final existing = items.where((item) =>
-    item.name.toLowerCase() == name.trim().toLowerCase()
+    item.name.toLowerCase() == name.trim().toLowerCase() &&
+        _isSameMonth(item.datePurchased, _selectedDate)
     ).toList();
 
     if (existing.isNotEmpty) {
@@ -67,19 +82,31 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
         _isEditMode = true;
       });
 
-      // Show dialog to user
+      // Show dialog to user only once
       if (!_isLoading) {
         _showExistingItemDialog(existing.first);
       }
     } else {
+      // Check if item exists in other months
+      final otherMonths = items.where((item) =>
+      item.name.toLowerCase() == name.trim().toLowerCase() &&
+          !_isSameMonth(item.datePurchased, _selectedDate)
+      ).toList();
+
       setState(() {
         _existingItem = null;
         _isEditMode = false;
       });
+
+      if (otherMonths.isNotEmpty && !_isLoading) {
+        _showOtherMonthsInfo(otherMonths);
+      }
     }
   }
 
   void _showExistingItemDialog(FoodItem item) {
+    final monthFormat = DateFormat('MMMM yyyy');
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -88,7 +115,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
           children: [
             Icon(Icons.info_outline, color: Colors.blue[700]),
             const SizedBox(width: 8),
-            const Text('Item Already Exists'),
+            const Text('Item Exists This Month'),
           ],
         ),
         content: Column(
@@ -96,8 +123,25 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '"${item.name}" is already in your inventory.',
+              '"${item.name}" already exists for ${monthFormat.format(item.datePurchased)}',
               style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildInfoRow('Current Stock', '${item.quantityPurchased.toStringAsFixed(2)} kg'),
+                  const SizedBox(height: 4),
+                  _buildInfoRow('Last Price', '₹${item.unitPrice.toStringAsFixed(2)}/kg'),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
             const Text('You can:'),
@@ -105,14 +149,14 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
             _buildOptionTile(
               Icons.add_circle_outline,
               'Add More Stock',
-              'Add new purchase quantity at today\'s price',
+              'Add new purchase to this month\'s stock',
               Colors.green,
             ),
             const SizedBox(height: 8),
             _buildOptionTile(
               Icons.edit,
-              'Create Different Item',
-              'Use a different name (e.g., "Rice - Basmati")',
+              'Use Different Name',
+              'Create separate item (e.g., "Rice - Basmati")',
               Colors.orange,
             ),
           ],
@@ -135,6 +179,96 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
             },
             icon: const Icon(Icons.add_shopping_cart),
             label: const Text('Add More Stock'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showOtherMonthsInfo(List<FoodItem> otherItems) {
+    final monthFormat = DateFormat('MMMM yyyy');
+    final selectedMonth = monthFormat.format(_selectedDate);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.calendar_month, color: Colors.green[700]),
+            const SizedBox(width: 8),
+            const Text('New Month Entry'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Found "${_nameController.text}" in other months:',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 12),
+            ...otherItems.take(3).map((item) => Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.inventory, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          monthFormat.format(item.datePurchased),
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          '${item.quantityPurchased.toStringAsFixed(1)} kg @ ₹${item.unitPrice.toStringAsFixed(2)}',
+                          style: TextStyle(fontSize: 11, color: Colors.grey[700]),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            )),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green[700], size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'You can create a new entry for $selectedMonth',
+                      style: TextStyle(
+                        color: Colors.green[700],
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.add),
+            label: Text('Create for $selectedMonth'),
           ),
         ],
       ),
@@ -194,7 +328,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
       final price = double.parse(_priceController.text);
 
       if (_isEditMode && _existingItem != null) {
-        // Add to existing item's stock
+        // Add to existing item's stock (same month)
         final newTotalQuantity = _existingItem!.quantityPurchased + quantity;
 
         // Update the existing item with new quantity and latest price
@@ -209,10 +343,11 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
         await ref.read(firestoreServiceProvider).updateItem(user.uid, updatedItem);
 
         if (mounted) {
+          final monthFormat = DateFormat('MMMM yyyy');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Added ${quantity.toStringAsFixed(2)} kg to ${name}\n'
+                'Added ${quantity.toStringAsFixed(2)} kg to $name (${monthFormat.format(_selectedDate)})\n'
                     'Total stock: ${newTotalQuantity.toStringAsFixed(2)} kg @ ₹${price.toStringAsFixed(2)}/kg',
               ),
               backgroundColor: Colors.green,
@@ -222,7 +357,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
           Navigator.of(context).pop();
         }
       } else {
-        // Create new item
+        // Create new item (different month or first entry)
         final item = FoodItem(
           id: '',
           name: name,
@@ -234,10 +369,11 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
         await ref.read(firestoreServiceProvider).addItem(user.uid, item);
 
         if (mounted) {
+          final monthFormat = DateFormat('MMMM yyyy');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'New item added: $name\n'
+                'New item added: $name (${monthFormat.format(_selectedDate)})\n'
                     '${quantity.toStringAsFixed(2)} kg @ ₹${price.toStringAsFixed(2)}/kg',
               ),
               backgroundColor: Colors.green,
@@ -264,6 +400,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
   @override
   Widget build(BuildContext context) {
     final itemsAsync = ref.watch(itemsProvider);
+    final monthFormat = DateFormat('MMMM yyyy');
 
     return Scaffold(
       appBar: AppBar(
@@ -275,15 +412,14 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
-                  title: const Text('Smart Inventory'),
+                  title: const Text('Month-Based Inventory'),
                   content: const Text(
-                    'This system prevents duplicate items:\n\n'
-                        '• If an item exists, you can add more stock\n'
-                        '• Each purchase can have different prices\n'
-                        '• The system uses the latest purchase price\n'
-                        '• Usage entries track their own prices\n\n'
-                        'Example: Add Rice at ₹45/kg today, add more '
-                        'Rice at ₹48/kg next week - no duplicates!',
+                    'This system tracks inventory by month:\n\n'
+                        '• Same item, same month → Add to stock\n'
+                        '• Same item, different month → New entry\n\n'
+                        'Example: "Rice" in October + "Rice" in October = Combined stock\n'
+                        'But "Rice" in October + "Rice" in November = Separate entries\n\n'
+                        'This helps track monthly purchasing patterns and costs.',
                   ),
                   actions: [
                     TextButton(
@@ -303,6 +439,38 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              // Month Indicator
+              Card(
+                color: Colors.purple[50],
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.calendar_month, color: Colors.purple[700]),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Inventory Month',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                          ),
+                          Text(
+                            monthFormat.format(_selectedDate),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.purple[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
               // Existing Item Warning
               if (_isEditMode && _existingItem != null)
                 Card(
@@ -318,7 +486,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                             Icon(Icons.inventory, color: Colors.blue[700]),
                             const SizedBox(width: 8),
                             Text(
-                              'Existing Item Found',
+                              'Existing Item (${monthFormat.format(_existingItem!.datePurchased)})',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.blue[700],
@@ -328,14 +496,14 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                           ],
                         ),
                         const Divider(height: 16),
-                        _buildInfoRow('Item Name', _existingItem!.name),
+                        _buildInfoRowWidget('Item Name', _existingItem!.name),
                         const SizedBox(height: 6),
-                        _buildInfoRow(
+                        _buildInfoRowWidget(
                           'Current Stock',
                           '${_existingItem!.quantityPurchased.toStringAsFixed(2)} kg',
                         ),
                         const SizedBox(height: 6),
-                        _buildInfoRow(
+                        _buildInfoRowWidget(
                           'Last Price',
                           '₹${_existingItem!.unitPrice.toStringAsFixed(2)}/kg',
                         ),
@@ -353,7 +521,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'You\'re adding more stock to this item',
+                                  'You\'re adding more stock to this month\'s entry',
                                   style: TextStyle(
                                     color: Colors.green[700],
                                     fontSize: 13,
@@ -401,7 +569,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                   prefixIcon: const Icon(Icons.scale),
                   suffixText: 'kg',
                   helperText: _isEditMode
-                      ? 'Enter how much you\'re adding'
+                      ? 'Enter how much you\'re adding this month'
                       : 'Enter total quantity purchased',
                   helperMaxLines: 2,
                 ),
@@ -426,10 +594,10 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
               // Price Input
               TextFormField(
                 controller: _priceController,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Unit Price',
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.currency_rupee),
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.currency_rupee),
                   suffixText: '/kg',
                   helperText: 'Enter price per kilogram',
                 ),
@@ -590,7 +758,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
               ListTile(
                 title: const Text('Purchase Date'),
                 subtitle: Text(
-                  '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                  '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year} (${monthFormat.format(_selectedDate)})',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 leading: const Icon(Icons.calendar_today),
@@ -620,7 +788,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                   _isLoading
                       ? 'Saving...'
                       : _isEditMode
-                      ? 'Add to Stock'
+                      ? 'Add to This Month\'s Stock'
                       : 'Save Item',
                 ),
                 style: FilledButton.styleFrom(
@@ -637,6 +805,19 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
   }
 
   Widget _buildInfoRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 13)),
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoRowWidget(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [

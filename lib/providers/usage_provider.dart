@@ -1,4 +1,3 @@
-
 // providers/usage_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/usage_entry.dart';
@@ -52,4 +51,18 @@ class DateRange {
   final DateTime end;
 
   DateRange(this.start, this.end);
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is DateRange &&
+        other.start == start &&
+        other.end == end;
+  }
+
+  @override
+  int get hashCode => start.hashCode ^ end.hashCode;
+
+  @override
+  String toString() => 'DateRange(start: $start, end: $end)';
 }
