@@ -19,8 +19,9 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
   final _priceController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
-  FoodItem? _matchingItem; // Item with same name, month, AND price
-  bool _willCreateNewEntry = false;
+  bool _isChecking = false;
+  FoodItem? _matchingItem;
+  FoodItem? _previousMonthItem; // For carryforward info
 
   @override
   void dispose() {
@@ -52,7 +53,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     if (_nameController.text.trim().isEmpty || _priceController.text.isEmpty) {
       setState(() {
         _matchingItem = null;
-        _willCreateNewEntry = true;
+        _previousMonthItem = null;
       });
       return;
     }
@@ -63,6 +64,8 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     final price = double.tryParse(_priceController.text);
     if (price == null) return;
 
+    setState(() => _isChecking = true);
+
     try {
       final matching =
       await ref.read(firestoreServiceProvider).findMatchingItemForPurchase(
@@ -72,20 +75,32 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
         price,
       );
 
+      // If matching item found and it's a carryforward, get previous month details
+      FoodItem? previousItem;
+      if (matching != null &&
+          matching.isCarriedForward &&
+          matching.previousMonthItemId != null) {
+        previousItem = await ref
+            .read(firestoreServiceProvider)
+            .getPreviousMonthItem(user.uid, matching.previousMonthItemId!);
+      }
+
       setState(() {
         _matchingItem = matching;
-        _willCreateNewEntry = matching == null;
+        _previousMonthItem = previousItem;
+        _isChecking = false;
       });
 
       if (matching != null) {
-        _showMatchingItemDialog(matching);
+        _showMatchingItemDialog(matching, previousItem);
       }
     } catch (e) {
       print('Error checking for matching item: $e');
+      setState(() => _isChecking = false);
     }
   }
 
-  void _showMatchingItemDialog(FoodItem item) {
+  void _showMatchingItemDialog(FoodItem item, FoodItem? previousItem) {
     final monthFormat = DateFormat('MMMM yyyy');
 
     showDialog(
@@ -96,79 +111,110 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
           children: [
             Icon(Icons.check_circle, color: Colors.green[700]),
             const SizedBox(width: 8),
-            const Text('Exact Match Found!'),
+            const Expanded(child: Text('Exact Match Found!')),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Found "${item.name}" in ${monthFormat.format(item.datePurchased)} with the same price',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.green[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.green[200]!),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Found "${item.name}" in ${monthFormat.format(item.datePurchased)} with the same price',
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildInfoRow('Current Stock',
-                      '${item.quantityPurchased.toStringAsFixed(2)} kg'),
-                  const SizedBox(height: 4),
-                  _buildInfoRow(
-                      'Price', '₹${item.unitPrice.toStringAsFixed(2)}/kg'),
-                  const SizedBox(height: 4),
-                  _buildInfoRow(
-                      'Month', monthFormat.format(item.datePurchased)),
-                  if (item.isCarriedForward) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green[200]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildInfoRow('Current Stock',
+                        '${item.quantityPurchased.toStringAsFixed(2)} kg'),
                     const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.forward, size: 14, color: Colors.blue[700]),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Carried forward from previous month',
-                          style:
-                          TextStyle(fontSize: 11, color: Colors.blue[700]),
-                        ),
-                      ],
-                    ),
+                    _buildInfoRow(
+                        'Price', '₹${item.unitPrice.toStringAsFixed(2)}/kg'),
+                    const SizedBox(height: 4),
+                    _buildInfoRow(
+                        'Month', monthFormat.format(item.datePurchased)),
+                    if (item.isCarriedForward && previousItem != null) ...[
+                      const Divider(height: 16),
+                      Row(
+                        children: [
+                          Icon(Icons.history,
+                              size: 14, color: Colors.blue[700]),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              'Carried from ${monthFormat.format(previousItem.datePurchased)}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.blue[700],
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Original purchase: ${previousItem.quantityPurchased.toStringAsFixed(2)} kg @ ₹${previousItem.unitPrice.toStringAsFixed(2)}/kg',
+                        style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                      ),
+                    ] else if (item.isCarriedForward) ...[
+                      const Divider(height: 16),
+                      Row(
+                        children: [
+                          Icon(Icons.forward,
+                              size: 14, color: Colors.blue[700]),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              'Carried forward from previous month',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.blue[700],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue[200]!),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.add_circle, color: Colors.blue[700], size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Stock will be added to this entry (same month, same price)',
-                      style: TextStyle(
-                        color: Colors.blue[700],
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.add_circle, color: Colors.blue[700], size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'New stock will be ADDED to this existing entry (same month, same price)',
+                        style: TextStyle(
+                          color: Colors.blue[700],
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -178,7 +224,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
               _priceController.clear();
               setState(() {
                 _matchingItem = null;
-                _willCreateNewEntry = true;
+                _previousMonthItem = null;
               });
             },
             child: const Text('Change Details'),
@@ -207,26 +253,27 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
       final price = double.parse(_priceController.text);
 
       if (_matchingItem != null) {
-        // Add to existing item (same name, month, and price)
-        final newTotalQuantity = _matchingItem!.quantityPurchased + quantity;
-
-        final updatedItem = _matchingItem!.copyWith(
-          quantityPurchased: newTotalQuantity,
-        );
-
+        // Add to existing item using atomic operation
         await ref
             .read(firestoreServiceProvider)
-            .updateItem(user.uid, updatedItem);
+            .addQuantityToItem(user.uid, _matchingItem!.id, quantity);
 
         if (mounted) {
           final monthFormat = DateFormat('MMMM yyyy');
+          final newTotal = _matchingItem!.quantityPurchased + quantity;
+
+          String message = 'Added ${quantity.toStringAsFixed(2)} kg to $name\n'
+              'New total: ${newTotal.toStringAsFixed(2)} kg @ ₹${price.toStringAsFixed(2)}/kg\n'
+              'Month: ${monthFormat.format(_selectedDate)}';
+
+          if (_matchingItem!.isCarriedForward && _previousMonthItem != null) {
+            message +=
+            '\n\n📋 Originally from ${monthFormat.format(_previousMonthItem!.datePurchased)}';
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                'Added ${quantity.toStringAsFixed(2)} kg to $name\n'
-                    'Total stock: ${newTotalQuantity.toStringAsFixed(2)} kg @ ₹${price.toStringAsFixed(2)}/kg\n'
-                    'Month: ${monthFormat.format(_selectedDate)}',
-              ),
+              content: Text(message),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 4),
             ),
@@ -234,7 +281,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
           Navigator.of(context).pop();
         }
       } else {
-        // Create new item (different month, different price, or first entry)
+        // Create new item
         final item = FoodItem(
           id: '',
           name: name,
@@ -267,8 +314,9 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text('Error: ${e.toString()}'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -299,48 +347,48 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'Price-Based Tracking:',
+                          'Duplicate Prevention:',
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         SizedBox(height: 8),
                         Text(
-                          '• Same item + Same month + Same price = Combined stock\n'
-                              '• Same item + Same month + Different price = Separate entry\n'
-                              '• Different month = Always separate entry',
+                          '• Same item + Same month + Same price = Stock is ADDED (no duplicate)\n'
+                              '• Different price = New separate entry\n'
+                              '• Different month = New separate entry',
                           style: TextStyle(fontSize: 13),
                         ),
                         SizedBox(height: 16),
                         Text(
-                          'Example 1:',
+                          'Example (No Duplicate):',
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         Text(
                           'Oct 5: Rice 10kg @₹45/kg\n'
                               'Oct 15: Rice 5kg @₹45/kg\n'
-                              '→ Combined: 15kg @₹45/kg',
+                              '→ Result: Single entry with 15kg @₹45/kg',
                           style: TextStyle(
                               fontSize: 12, fontStyle: FontStyle.italic),
                         ),
                         SizedBox(height: 12),
                         Text(
-                          'Example 2:',
+                          'Example (Separate Entry):',
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         Text(
                           'Oct 5: Rice 10kg @₹45/kg\n'
                               'Oct 15: Rice 5kg @₹50/kg\n'
-                              '→ Two entries (price differs)',
+                              '→ Result: Two entries (price differs)',
                           style: TextStyle(
                               fontSize: 12, fontStyle: FontStyle.italic),
                         ),
                         SizedBox(height: 16),
                         Text(
-                          'Month Closing:',
+                          'Carryforward Tracking:',
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         SizedBox(height: 8),
                         Text(
-                          'When you close a month, remaining stock automatically carries forward to next month.',
+                          'When adding to carried forward items, you can see which month the stock originally came from.',
                           style: TextStyle(fontSize: 13),
                         ),
                       ],
@@ -432,6 +480,66 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                         'Price',
                         '₹${_matchingItem!.unitPrice.toStringAsFixed(2)}/kg',
                       ),
+                      if (_matchingItem!.isCarriedForward &&
+                          _previousMonthItem != null) ...[
+                        const Divider(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[100],
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.history,
+                                      size: 14, color: Colors.blue[700]),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Carried from ${monthFormat.format(_previousMonthItem!.datePurchased)}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue[700],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Original: ${_previousMonthItem!.quantityPurchased.toStringAsFixed(2)} kg @ ₹${_previousMonthItem!.unitPrice.toStringAsFixed(2)}/kg',
+                                style: TextStyle(
+                                    fontSize: 10, color: Colors.grey[700]),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+
+            // Checking indicator
+            if (_isChecking)
+              Card(
+                color: Colors.blue[50],
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Checking for duplicates...',
+                        style: TextStyle(color: Colors.blue[700]),
+                      ),
                     ],
                   ),
                 ),
@@ -448,7 +556,6 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
               ),
               textCapitalization: TextCapitalization.words,
               onChanged: (value) {
-                // Trigger check when both name and price are filled
                 if (_priceController.text.isNotEmpty) {
                   _checkForMatching();
                 }
@@ -462,7 +569,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Price Input (moved before quantity to check matching early)
+            // Price Input
             TextFormField(
               controller: _priceController,
               decoration: const InputDecoration(
@@ -470,14 +577,13 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.currency_rupee),
                 suffixText: '/kg',
-                helperText: 'Price affects whether stock is combined',
+                helperText: 'Price determines if stock is combined or separate',
                 helperMaxLines: 2,
               ),
               keyboardType:
               const TextInputType.numberWithOptions(decimal: true),
               onChanged: (value) {
                 setState(() {});
-                // Check for matching when price changes
                 if (_nameController.text.isNotEmpty) {
                   _checkForMatching();
                 }
@@ -509,7 +615,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                 prefixIcon: const Icon(Icons.scale),
                 suffixText: 'kg',
                 helperText: _matchingItem != null
-                    ? 'Will be added to existing stock'
+                    ? 'Will be added to existing ${_matchingItem!.quantityPurchased.toStringAsFixed(2)} kg'
                     : 'Total quantity purchased',
                 helperMaxLines: 2,
               ),
@@ -687,7 +793,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
 
             // Save Button
             FilledButton.icon(
-              onPressed: _isLoading ? null : _saveItem,
+              onPressed: _isLoading || _isChecking ? null : _saveItem,
               icon: _isLoading
                   ? const SizedBox(
                 height: 20,

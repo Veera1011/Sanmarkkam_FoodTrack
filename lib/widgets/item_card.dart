@@ -3,16 +3,62 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../models/food_item.dart';
 import '../providers/items_provider.dart';
+import '../providers/auth_provider.dart';
 
-class ItemCard extends ConsumerWidget {
+class ItemCard extends ConsumerStatefulWidget {
   final FoodItem item;
 
   const ItemCard({super.key, required this.item});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final remainingAsync = ref.watch(itemRemainingQuantityProvider(item.id));
+  ConsumerState<ItemCard> createState() => _ItemCardState();
+}
+
+class _ItemCardState extends ConsumerState<ItemCard> {
+  FoodItem? _previousMonthItem;
+  bool _isLoadingPrevious = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.item.isCarriedForward &&
+        widget.item.previousMonthItemId != null) {
+      _loadPreviousMonthItem();
+    }
+  }
+
+  Future<void> _loadPreviousMonthItem() async {
+    setState(() => _isLoadingPrevious = true);
+
+    final user = ref.read(currentUserProvider);
+    if (user == null) return;
+
+    try {
+      final previous =
+      await ref.read(firestoreServiceProvider).getPreviousMonthItem(
+        user.uid,
+        widget.item.previousMonthItemId!,
+      );
+      if (mounted) {
+        setState(() {
+          _previousMonthItem = previous;
+          _isLoadingPrevious = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading previous month item: $e');
+      if (mounted) {
+        setState(() => _isLoadingPrevious = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final remainingAsync =
+    ref.watch(itemRemainingQuantityProvider(widget.item.id));
     final dateFormat = DateFormat('dd MMM yyyy');
+    final monthFormat = DateFormat('MMMM yyyy');
     final currencyFormat = NumberFormat.currency(symbol: '₹');
 
     return Card(
@@ -27,14 +73,14 @@ class ItemCard extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: item.isMonthClosed
+                    color: widget.item.isMonthClosed
                         ? Colors.grey[300]
                         : Theme.of(context).colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     Icons.fastfood,
-                    color: item.isMonthClosed
+                    color: widget.item.isMonthClosed
                         ? Colors.grey[600]
                         : Theme.of(context).colorScheme.primary,
                   ),
@@ -48,15 +94,21 @@ class ItemCard extends ConsumerWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              item.name,
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                color: item.isMonthClosed ? Colors.grey[700] : null,
+                              widget.item.name,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(
+                                color: widget.item.isMonthClosed
+                                    ? Colors.grey[700]
+                                    : null,
                               ),
                             ),
                           ),
-                          if (item.isMonthClosed)
+                          if (widget.item.isMonthClosed)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
                                 color: Colors.green[100],
                                 borderRadius: BorderRadius.circular(12),
@@ -64,7 +116,8 @@ class ItemCard extends ConsumerWidget {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.check_circle, size: 12, color: Colors.green[700]),
+                                  Icon(Icons.check_circle,
+                                      size: 12, color: Colors.green[700]),
                                   const SizedBox(width: 4),
                                   Text(
                                     'CLOSED',
@@ -82,9 +135,10 @@ class ItemCard extends ConsumerWidget {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          if (item.isCarriedForward) ...[
+                          if (widget.item.isCarriedForward) ...[
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: Colors.blue[100],
                                 borderRadius: BorderRadius.circular(8),
@@ -92,7 +146,8 @@ class ItemCard extends ConsumerWidget {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.forward, size: 10, color: Colors.blue[700]),
+                                  Icon(Icons.forward,
+                                      size: 10, color: Colors.blue[700]),
                                   const SizedBox(width: 4),
                                   Text(
                                     'Carried Forward',
@@ -109,14 +164,58 @@ class ItemCard extends ConsumerWidget {
                           ],
                           Expanded(
                             child: Text(
-                              'Purchased: ${dateFormat.format(item.datePurchased)}',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: item.isMonthClosed ? Colors.grey[600] : null,
+                              'Month: ${monthFormat.format(widget.item.datePurchased)}',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                color: widget.item.isMonthClosed
+                                    ? Colors.grey[600]
+                                    : null,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
                         ],
                       ),
+                      if (widget.item.isCarriedForward) ...[
+                        const SizedBox(height: 4),
+                        if (_isLoadingPrevious)
+                          Row(
+                            children: [
+                              SizedBox(
+                                width: 10,
+                                height: 10,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 1.5, color: Colors.grey[600]),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Loading origin...',
+                                style: TextStyle(
+                                    fontSize: 10, color: Colors.grey[600]),
+                              ),
+                            ],
+                          )
+                        else if (_previousMonthItem != null)
+                          Text(
+                            '📦 From ${monthFormat.format(_previousMonthItem!.datePurchased)} (Originally ${_previousMonthItem!.quantityPurchased.toStringAsFixed(2)} kg)',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.blue[700],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          )
+                        else
+                          Text(
+                            '📦 From previous month',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.blue[700],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                      ],
                     ],
                   ),
                 ),
@@ -128,26 +227,40 @@ class ItemCard extends ConsumerWidget {
                 Expanded(
                   child: _InfoItem(
                     label: 'Purchased',
-                    value: '${item.quantityPurchased.toStringAsFixed(2)} kg',
+                    value:
+                    '${widget.item.quantityPurchased.toStringAsFixed(2)} kg',
                     icon: Icons.shopping_cart,
-                    isGrayed: item.isMonthClosed,
+                    isGrayed: widget.item.isMonthClosed,
                   ),
                 ),
                 Expanded(
                   child: _InfoItem(
                     label: 'Unit Price',
-                    value: currencyFormat.format(item.unitPrice),
+                    value: currencyFormat.format(widget.item.unitPrice),
                     icon: Icons.currency_rupee,
-                    isGrayed: item.isMonthClosed,
+                    isGrayed: widget.item.isMonthClosed,
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.only(left: 20),
+              child: Text(
+                'Date: ${dateFormat.format(widget.item.datePurchased)}',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: widget.item.isMonthClosed
+                      ? Colors.grey[500]
+                      : Colors.grey[600],
+                ),
+              ),
+            ),
             const SizedBox(height: 12),
             remainingAsync.when(
               data: (remaining) {
-                final percentage = item.quantityPurchased > 0
-                    ? (remaining / item.quantityPurchased) * 100
+                final percentage = widget.item.quantityPurchased > 0
+                    ? (remaining / widget.item.quantityPurchased) * 100
                     : 0;
                 final color = percentage > 50
                     ? Colors.green
@@ -162,15 +275,23 @@ class ItemCard extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          item.isMonthClosed ? 'Final Stock' : 'Remaining Stock',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: item.isMonthClosed ? Colors.grey[600] : null,
+                          widget.item.isMonthClosed
+                              ? 'Final Stock'
+                              : 'Remaining Stock',
+                          style:
+                          Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: widget.item.isMonthClosed
+                                ? Colors.grey[600]
+                                : null,
                           ),
                         ),
                         Text(
                           '${remaining.toStringAsFixed(2)} kg',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: item.isMonthClosed ? Colors.grey[700] : color,
+                          style:
+                          Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: widget.item.isMonthClosed
+                                ? Colors.grey[700]
+                                : color,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -180,17 +301,17 @@ class ItemCard extends ConsumerWidget {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
-                        value: item.quantityPurchased > 0
-                            ? remaining / item.quantityPurchased
+                        value: widget.item.quantityPurchased > 0
+                            ? remaining / widget.item.quantityPurchased
                             : 0,
                         minHeight: 8,
                         backgroundColor: Colors.grey[200],
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          item.isMonthClosed ? Colors.grey : color,
+                          widget.item.isMonthClosed ? Colors.grey : color,
                         ),
                       ),
                     ),
-                    if (item.isMonthClosed && remaining > 0.01) ...[
+                    if (widget.item.isMonthClosed && remaining > 0.01) ...[
                       const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.all(8),
@@ -201,11 +322,12 @@ class ItemCard extends ConsumerWidget {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.info_outline, size: 14, color: Colors.blue[700]),
+                            Icon(Icons.forward,
+                                size: 14, color: Colors.blue[700]),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                '${remaining.toStringAsFixed(2)} kg carried to next month',
+                                '${remaining.toStringAsFixed(2)} kg carried to ${monthFormat.format(DateTime(widget.item.datePurchased.year, widget.item.datePurchased.month + 1, 1))}',
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: Colors.blue[700],
@@ -217,7 +339,7 @@ class ItemCard extends ConsumerWidget {
                         ),
                       ),
                     ],
-                    if (item.isMonthClosed) ...[
+                    if (widget.item.isMonthClosed) ...[
                       const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.all(8),
