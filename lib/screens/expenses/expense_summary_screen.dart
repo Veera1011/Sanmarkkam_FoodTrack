@@ -15,10 +15,12 @@ class ExpenseSummaryScreen extends ConsumerStatefulWidget {
   const ExpenseSummaryScreen({super.key});
 
   @override
-  ConsumerState<ExpenseSummaryScreen> createState() => _ExpenseSummaryScreenState();
+  ConsumerState<ExpenseSummaryScreen> createState() =>
+      _ExpenseSummaryScreenState();
 }
 
-class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> with SingleTickerProviderStateMixin {
+class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   DateTime _selectedDate = DateTime.now();
   DateTime _customStartDate = DateTime.now().subtract(const Duration(days: 30));
@@ -59,8 +61,10 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
         return DateRange(start, end);
 
       case ExpensePeriod.custom:
-        final start = DateTime(_customStartDate.year, _customStartDate.month, _customStartDate.day, 0, 0, 0);
-        final end = DateTime(_customEndDate.year, _customEndDate.month, _customEndDate.day, 23, 59, 59, 999);
+        final start = DateTime(_customStartDate.year, _customStartDate.month,
+            _customStartDate.day, 0, 0, 0);
+        final end = DateTime(_customEndDate.year, _customEndDate.month,
+            _customEndDate.day, 23, 59, 59, 999);
         print('📅 Custom range: $start to $end');
         return DateRange(start, end);
     }
@@ -96,7 +100,8 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
       builder: (context) => _YearPicker(
         initialYear: _selectedDate.year,
         onYearSelected: (year) {
-          setState(() => _selectedDate = DateTime(year, _selectedDate.month, _selectedDate.day));
+          setState(() => _selectedDate =
+              DateTime(year, _selectedDate.month, _selectedDate.day));
         },
       ),
     );
@@ -107,7 +112,8 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
       context: context,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
-      initialDateRange: DateTimeRange(start: _customStartDate, end: _customEndDate),
+      initialDateRange:
+      DateTimeRange(start: _customStartDate, end: _customEndDate),
     );
     if (picked != null) {
       setState(() {
@@ -162,7 +168,8 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
             data: (entries) {
               print('✅ Loaded ${entries.length} entries for display');
               return itemsAsync.when(
-                data: (items) => _buildExpenseContent(entries, items, period, dateRange),
+                data: (items) =>
+                    _buildExpenseContent(entries, items, period, dateRange),
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, s) => Center(child: Text('Error loading items: $e')),
               );
@@ -176,7 +183,8 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
                   const SizedBox(height: 16),
                   Text('Error loading expenses: $e'),
                   const SizedBox(height: 8),
-                  Text('Stack: $s', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                  Text('Stack: $s',
+                      style: TextStyle(fontSize: 10, color: Colors.grey)),
                 ],
               ),
             ),
@@ -208,7 +216,8 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
         onTap = _selectYear;
         break;
       case ExpensePeriod.custom:
-        displayText = '${dateFormat.format(_customStartDate)} - ${dateFormat.format(_customEndDate)}';
+        displayText =
+        '${dateFormat.format(_customStartDate)} - ${dateFormat.format(_customEndDate)}';
         onTap = _selectCustomRange;
         break;
     }
@@ -241,9 +250,11 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.receipt_long_outlined, size: 80, color: Colors.grey[400]),
+            Icon(Icons.receipt_long_outlined,
+                size: 80, color: Colors.grey[400]),
             const SizedBox(height: 16),
-            const Text('No expenses in this period', style: TextStyle(fontSize: 18)),
+            const Text('No expenses in this period',
+                style: TextStyle(fontSize: 18)),
             const SizedBox(height: 8),
             Text(
               'Try selecting a different date range',
@@ -287,13 +298,14 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
     // Product-wise expenses
     final Map<String, Map<String, dynamic>> productExpenses = {};
     for (final entry in entries) {
-      final item = items.firstWhere((i) => i.id == entry.itemId, orElse: () => FoodItem(
-        id: entry.itemId,
-        name: 'Unknown Item',
-        quantityPurchased: 0,
-        unitPrice: 0,
-        datePurchased: DateTime.now(),
-      ));
+      final item = items.firstWhere((i) => i.id == entry.itemId,
+          orElse: () => FoodItem(
+            id: entry.itemId,
+            name: 'Unknown Item',
+            quantityPurchased: 0,
+            unitPrice: 0,
+            datePurchased: DateTime.now(),
+          ));
 
       if (!productExpenses.containsKey(item.id)) {
         productExpenses[item.id] = {
@@ -307,7 +319,8 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
       productExpenses[item.id]!['totalExpense'] =
           (productExpenses[item.id]!['totalExpense'] as double) + entry.expense;
       productExpenses[item.id]!['totalQuantity'] =
-          (productExpenses[item.id]!['totalQuantity'] as double) + entry.quantityUsed;
+          (productExpenses[item.id]!['totalQuantity'] as double) +
+              entry.quantityUsed;
       (productExpenses[item.id]!['entries'] as List<UsageEntry>).add(entry);
     }
 
@@ -315,7 +328,8 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
     final Map<String, double> dailyExpenses = {};
     for (final entry in entries) {
       // Create a normalized date key (without time component)
-      final date = DateTime(entry.dateUsed.year, entry.dateUsed.month, entry.dateUsed.day);
+      final date = DateTime(
+          entry.dateUsed.year, entry.dateUsed.month, entry.dateUsed.day);
       final dateKey = DateFormat('dd MMM').format(date);
       dailyExpenses[dateKey] = (dailyExpenses[dateKey] ?? 0) + entry.expense;
     }
@@ -334,8 +348,11 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
     });
     final sortedDailyExpenses = Map.fromEntries(sortedEntries);
 
-    final avgExpense = dailyExpenses.isEmpty ? 0.0 : totalExpense / dailyExpenses.length;
-    final maxExpense = dailyExpenses.values.isEmpty ? 0.0 : dailyExpenses.values.reduce((a, b) => a > b ? a : b);
+    final avgExpense =
+    dailyExpenses.isEmpty ? 0.0 : totalExpense / dailyExpenses.length;
+    final maxExpense = dailyExpenses.values.isEmpty
+        ? 0.0
+        : dailyExpenses.values.reduce((a, b) => a > b ? a : b);
 
     print('💰 Summary calculated:');
     print('   Total: ₹$totalExpense');
@@ -392,7 +409,8 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
     );
   }
 
-  Widget _buildSummaryCard(String title, String value, IconData icon, Color color) {
+  Widget _buildSummaryCard(
+      String title, String value, IconData icon, Color color) {
     return Card(
       elevation: 3,
       child: Padding(
@@ -428,7 +446,8 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
     );
   }
 
-  Widget _buildDailyTrendChart(Map<String, dynamic> summary, ExpensePeriod period) {
+  Widget _buildDailyTrendChart(
+      Map<String, dynamic> summary, ExpensePeriod period) {
     final dailyExpenses = summary['dailyExpenses'] as Map<String, double>;
 
     if (dailyExpenses.isEmpty) return const SizedBox.shrink();
@@ -445,7 +464,10 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
                 const SizedBox(width: 8),
                 Text(
                   'Daily Expense Trend',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -461,7 +483,8 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
   }
 
   Widget _buildProductWiseExpenseChart(Map<String, dynamic> summary) {
-    final productExpenses = summary['productExpenses'] as Map<String, Map<String, dynamic>>;
+    final productExpenses =
+    summary['productExpenses'] as Map<String, Map<String, dynamic>>;
 
     if (productExpenses.isEmpty) return const SizedBox.shrink();
 
@@ -477,7 +500,10 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
                 const SizedBox(width: 8),
                 Text(
                   'Product-wise Distribution',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -493,9 +519,11 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
   }
 
   Widget _buildProductExpenseList(Map<String, dynamic> summary) {
-    final productExpenses = summary['productExpenses'] as Map<String, Map<String, dynamic>>;
+    final productExpenses =
+    summary['productExpenses'] as Map<String, Map<String, dynamic>>;
     final sortedProducts = productExpenses.entries.toList()
-      ..sort((a, b) => (b.value['totalExpense'] as double).compareTo(a.value['totalExpense'] as double));
+      ..sort((a, b) => (b.value['totalExpense'] as double)
+          .compareTo(a.value['totalExpense'] as double));
 
     return Card(
       child: Padding(
@@ -509,7 +537,10 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
                 const SizedBox(width: 8),
                 Text(
                   'Product Summary',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -517,7 +548,9 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
             ...sortedProducts.map((entry) {
               final data = entry.value;
               final currencyFormat = NumberFormat.currency(symbol: '₹');
-              final percentage = (data['totalExpense'] / summary['totalExpense'] * 100).toStringAsFixed(1);
+              final percentage =
+              (data['totalExpense'] / summary['totalExpense'] * 100)
+                  .toStringAsFixed(1);
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -536,12 +569,16 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
                         Expanded(
                           child: Text(
                             data['name'],
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16),
                           ),
                         ),
                         Text(
                           currencyFormat.format(data['totalExpense']),
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.green),
                         ),
                       ],
                     ),
@@ -551,7 +588,8 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
                         Expanded(
                           child: Row(
                             children: [
-                              const Icon(Icons.scale, size: 16, color: Colors.grey),
+                              const Icon(Icons.scale,
+                                  size: 16, color: Colors.grey),
                               const SizedBox(width: 4),
                               Text(
                                 '${data['totalQuantity'].toStringAsFixed(2)} kg',
@@ -562,7 +600,8 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
                         ),
                         Row(
                           children: [
-                            const Icon(Icons.pie_chart, size: 16, color: Colors.grey),
+                            const Icon(Icons.pie_chart,
+                                size: 16, color: Colors.grey),
                             const SizedBox(width: 4),
                             Text(
                               '$percentage%',
@@ -578,7 +617,8 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
                       child: LinearProgressIndicator(
                         value: data['totalExpense'] / summary['totalExpense'],
                         backgroundColor: Colors.grey[300],
-                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.purple),
+                        valueColor:
+                        const AlwaysStoppedAnimation<Color>(Colors.purple),
                         minHeight: 6,
                       ),
                     ),
@@ -592,7 +632,8 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
     );
   }
 
-  Widget _buildTransactionsList(List<UsageEntry> entries, List<FoodItem> items) {
+  Widget _buildTransactionsList(
+      List<UsageEntry> entries, List<FoodItem> items) {
     final dateFormat = DateFormat('dd MMM yyyy HH:mm');
     final currencyFormat = NumberFormat.currency(symbol: '₹');
 
@@ -612,7 +653,10 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
                 const SizedBox(width: 8),
                 Text(
                   'All Transactions (${entries.length})',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -637,7 +681,8 @@ class _ExpenseSummaryScreenState extends ConsumerState<ExpenseSummaryScreen> wit
                 ),
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                    backgroundColor:
+                    Theme.of(context).colorScheme.primaryContainer,
                     child: const Icon(Icons.fastfood, size: 20),
                   ),
                   title: Text(
@@ -715,7 +760,8 @@ class _MonthYearPickerState extends State<_MonthYearPicker> {
                 ),
                 Text(
                   selectedYear.toString(),
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 IconButton(
                   icon: const Icon(Icons.chevron_right),
@@ -740,7 +786,9 @@ class _MonthYearPickerState extends State<_MonthYearPicker> {
                     onTap: () => setState(() => selectedMonth = month),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: isSelected ? Theme.of(context).primaryColor : Colors.grey[200],
+                        color: isSelected
+                            ? Theme.of(context).primaryColor
+                            : Colors.grey[200],
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Center(
@@ -748,7 +796,9 @@ class _MonthYearPickerState extends State<_MonthYearPicker> {
                           DateFormat('MMM').format(DateTime(2000, month)),
                           style: TextStyle(
                             color: isSelected ? Colors.white : Colors.black,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                           ),
                         ),
                       ),
@@ -805,7 +855,8 @@ class _YearPickerState extends State<_YearPicker> {
 
   @override
   Widget build(BuildContext context) {
-    final years = List.generate(endYear - startYear + 1, (index) => startYear + index);
+    final years =
+    List.generate(endYear - startYear + 1, (index) => startYear + index);
 
     return AlertDialog(
       title: const Text('Select Year'),
@@ -827,7 +878,9 @@ class _YearPickerState extends State<_YearPicker> {
               onTap: () => setState(() => selectedYear = year),
               child: Container(
                 decoration: BoxDecoration(
-                  color: isSelected ? Theme.of(context).primaryColor : Colors.grey[200],
+                  color: isSelected
+                      ? Theme.of(context).primaryColor
+                      : Colors.grey[200],
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Center(
@@ -835,7 +888,8 @@ class _YearPickerState extends State<_YearPicker> {
                     year.toString(),
                     style: TextStyle(
                       color: isSelected ? Colors.white : Colors.black,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight:
+                      isSelected ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
                 ),

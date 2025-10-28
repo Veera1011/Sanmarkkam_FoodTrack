@@ -10,14 +10,17 @@ import '../../widgets/item_card.dart';
 import '../items/add_item_screen.dart';
 import '../usage/add_usage_screen.dart';
 import '../expenses/expense_summary_screen.dart';
+import '../items/month_closing_screen.dart';
 
 enum DashboardPeriod { today, thisMonth, thisYear, custom, all }
 
 // Provider for selected dashboard period
-final dashboardPeriodProvider = StateProvider<DashboardPeriod>((ref) => DashboardPeriod.thisMonth);
+final dashboardPeriodProvider =
+StateProvider<DashboardPeriod>((ref) => DashboardPeriod.thisMonth);
 
 // Provider for custom date range
-final dashboardCustomRangeProvider = StateProvider<DateTimeRange?>((ref) => null);
+final dashboardCustomRangeProvider =
+StateProvider<DateTimeRange?>((ref) => null);
 
 // Provider for filtered items
 final filteredItemsProvider = Provider<AsyncValue<List<FoodItem>>>((ref) {
@@ -44,7 +47,8 @@ final filteredExpensesProvider = Provider<AsyncValue<double>>((ref) {
   return usageAsync.when(
     data: (entries) {
       final filtered = _filterUsageByPeriod(entries, period, customRange);
-      final total = filtered.fold<double>(0.0, (sum, entry) => sum + entry.expense);
+      final total =
+      filtered.fold<double>(0.0, (sum, entry) => sum + entry.expense);
       return AsyncValue.data(total);
     },
     loading: () => const AsyncValue.loading(),
@@ -79,14 +83,16 @@ List<FoodItem> _filterItemsByPeriod(
     case DashboardPeriod.custom:
       if (customRange == null) return items;
       startDate = customRange.start;
-      endDate = DateTime(customRange.end.year, customRange.end.month, customRange.end.day, 23, 59, 59);
+      endDate = DateTime(customRange.end.year, customRange.end.month,
+          customRange.end.day, 23, 59, 59);
       break;
     case DashboardPeriod.all:
       return items;
   }
 
   return items.where((item) {
-    return item.datePurchased.isAfter(startDate.subtract(const Duration(seconds: 1))) &&
+    return item.datePurchased
+        .isAfter(startDate.subtract(const Duration(seconds: 1))) &&
         item.datePurchased.isBefore(endDate.add(const Duration(seconds: 1)));
   }).toList();
 }
@@ -118,14 +124,16 @@ List<UsageEntry> _filterUsageByPeriod(
     case DashboardPeriod.custom:
       if (customRange == null) return entries;
       startDate = customRange.start;
-      endDate = DateTime(customRange.end.year, customRange.end.month, customRange.end.day, 23, 59, 59);
+      endDate = DateTime(customRange.end.year, customRange.end.month,
+          customRange.end.day, 23, 59, 59);
       break;
     case DashboardPeriod.all:
       return entries;
   }
 
   return entries.where((entry) {
-    return entry.dateUsed.isAfter(startDate.subtract(const Duration(seconds: 1))) &&
+    return entry.dateUsed
+        .isAfter(startDate.subtract(const Duration(seconds: 1))) &&
         entry.dateUsed.isBefore(endDate.add(const Duration(seconds: 1)));
   }).toList();
 }
@@ -164,6 +172,15 @@ class DashboardScreen extends ConsumerWidget {
             },
           ),
           IconButton(
+            icon: const Icon(Icons.event_available),
+            tooltip: 'Close Month',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const MonthClosingScreen()),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Logout',
             onPressed: () async {
@@ -186,7 +203,10 @@ class DashboardScreen extends ConsumerWidget {
               gradient: LinearGradient(
                 colors: [
                   Theme.of(context).colorScheme.primaryContainer,
-                  Theme.of(context).colorScheme.primaryContainer.withOpacity(0.7),
+                  Theme.of(context)
+                      .colorScheme
+                      .primaryContainer
+                      .withOpacity(0.7),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -211,14 +231,22 @@ class DashboardScreen extends ConsumerWidget {
                         children: [
                           Text(
                             _getPeriodLabel(selectedPeriod, customRange),
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimaryContainer,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             currencyFormat.format(expense),
-                            style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .displaySmall
+                                ?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: Theme.of(context).colorScheme.primary,
                             ),
@@ -243,7 +271,8 @@ class DashboardScreen extends ConsumerWidget {
                   ElevatedButton.icon(
                     onPressed: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const ExpenseSummaryScreen()),
+                        MaterialPageRoute(
+                            builder: (_) => const ExpenseSummaryScreen()),
                       );
                     },
                     icon: const Icon(Icons.insights),
@@ -297,7 +326,8 @@ class DashboardScreen extends ConsumerWidget {
                   icon: const Icon(Icons.remove, size: 20),
                   label: const Text('Add Usage'),
                   style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
                   ),
                 ),
               ],
@@ -337,7 +367,8 @@ class DashboardScreen extends ConsumerWidget {
                         FilledButton.icon(
                           onPressed: () {
                             Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const AddItemScreen()),
+                              MaterialPageRoute(
+                                  builder: (_) => const AddItemScreen()),
                             );
                           },
                           icon: const Icon(Icons.add),
@@ -365,7 +396,8 @@ class DashboardScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                    const Icon(Icons.error_outline,
+                        size: 64, color: Colors.red),
                     const SizedBox(height: 16),
                     Text('Error: $error'),
                     const SizedBox(height: 16),
@@ -407,7 +439,8 @@ class DashboardScreen extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.filter_list, color: Theme.of(context).colorScheme.primary, size: 20),
+                Icon(Icons.filter_list,
+                    color: Theme.of(context).colorScheme.primary, size: 20),
                 const SizedBox(width: 8),
                 Text(
                   'Filter by Period',
@@ -465,8 +498,10 @@ class DashboardScreen extends ConsumerWidget {
                         initialDateRange: customRange,
                       );
                       if (picked != null) {
-                        ref.read(dashboardCustomRangeProvider.notifier).state = picked;
-                        ref.read(dashboardPeriodProvider.notifier).state = DashboardPeriod.custom;
+                        ref.read(dashboardCustomRangeProvider.notifier).state =
+                            picked;
+                        ref.read(dashboardPeriodProvider.notifier).state =
+                            DashboardPeriod.custom;
                       }
                     },
                   ),
@@ -482,12 +517,17 @@ class DashboardScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            if (selectedPeriod == DashboardPeriod.custom && customRange != null) ...[
+            if (selectedPeriod == DashboardPeriod.custom &&
+                customRange != null) ...[
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primaryContainer
+                      .withOpacity(0.3),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -517,15 +557,9 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPeriodChip(
-      BuildContext context,
-      WidgetRef ref,
-      String label,
-      DashboardPeriod period,
-      IconData icon,
-      DashboardPeriod selectedPeriod,
-      {VoidCallback? onTap}
-      ) {
+  Widget _buildPeriodChip(BuildContext context, WidgetRef ref, String label,
+      DashboardPeriod period, IconData icon, DashboardPeriod selectedPeriod,
+      {VoidCallback? onTap}) {
     final isSelected = selectedPeriod == period;
     return FilterChip(
       label: Row(
@@ -549,7 +583,9 @@ class DashboardScreen extends ConsumerWidget {
       checkmarkColor: Theme.of(context).colorScheme.primary,
       labelStyle: TextStyle(
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-        color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey[700],
+        color: isSelected
+            ? Theme.of(context).colorScheme.primary
+            : Colors.grey[700],
       ),
     );
   }

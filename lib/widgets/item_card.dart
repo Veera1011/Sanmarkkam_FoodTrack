@@ -27,12 +27,16 @@ class ItemCard extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
+                    color: item.isMonthClosed
+                        ? Colors.grey[300]
+                        : Theme.of(context).colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     Icons.fastfood,
-                    color: Theme.of(context).colorScheme.primary,
+                    color: item.isMonthClosed
+                        ? Colors.grey[600]
+                        : Theme.of(context).colorScheme.primary,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -40,13 +44,78 @@ class ItemCard extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        item.name,
-                        style: Theme.of(context).textTheme.titleLarge,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              item.name,
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                color: item.isMonthClosed ? Colors.grey[700] : null,
+                              ),
+                            ),
+                          ),
+                          if (item.isMonthClosed)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.green[100],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.check_circle, size: 12, color: Colors.green[700]),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'CLOSED',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green[700],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
                       ),
-                      Text(
-                        'Purchased: ${dateFormat.format(item.datePurchased)}',
-                        style: Theme.of(context).textTheme.bodySmall,
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          if (item.isCarriedForward) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.blue[100],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.forward, size: 10, color: Colors.blue[700]),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Carried Forward',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue[700],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          Expanded(
+                            child: Text(
+                              'Purchased: ${dateFormat.format(item.datePurchased)}',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: item.isMonthClosed ? Colors.grey[600] : null,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -61,6 +130,7 @@ class ItemCard extends ConsumerWidget {
                     label: 'Purchased',
                     value: '${item.quantityPurchased.toStringAsFixed(2)} kg',
                     icon: Icons.shopping_cart,
+                    isGrayed: item.isMonthClosed,
                   ),
                 ),
                 Expanded(
@@ -68,6 +138,7 @@ class ItemCard extends ConsumerWidget {
                     label: 'Unit Price',
                     value: currencyFormat.format(item.unitPrice),
                     icon: Icons.currency_rupee,
+                    isGrayed: item.isMonthClosed,
                   ),
                 ),
               ],
@@ -75,7 +146,9 @@ class ItemCard extends ConsumerWidget {
             const SizedBox(height: 12),
             remainingAsync.when(
               data: (remaining) {
-                final percentage = (remaining / item.quantityPurchased) * 100;
+                final percentage = item.quantityPurchased > 0
+                    ? (remaining / item.quantityPurchased) * 100
+                    : 0;
                 final color = percentage > 50
                     ? Colors.green
                     : percentage > 20
@@ -89,13 +162,15 @@ class ItemCard extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Remaining Stock',
-                          style: Theme.of(context).textTheme.bodyMedium,
+                          item.isMonthClosed ? 'Final Stock' : 'Remaining Stock',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: item.isMonthClosed ? Colors.grey[600] : null,
+                          ),
                         ),
                         Text(
                           '${remaining.toStringAsFixed(2)} kg',
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: color,
+                            color: item.isMonthClosed ? Colors.grey[700] : color,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -105,12 +180,70 @@ class ItemCard extends ConsumerWidget {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
-                        value: remaining / item.quantityPurchased,
+                        value: item.quantityPurchased > 0
+                            ? remaining / item.quantityPurchased
+                            : 0,
                         minHeight: 8,
                         backgroundColor: Colors.grey[200],
-                        valueColor: AlwaysStoppedAnimation<Color>(color),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          item.isMonthClosed ? Colors.grey : color,
+                        ),
                       ),
                     ),
+                    if (item.isMonthClosed && remaining > 0.01) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[50],
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.blue[200]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline, size: 14, color: Colors.blue[700]),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${remaining.toStringAsFixed(2)} kg carried to next month',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.blue[700],
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    if (item.isMonthClosed) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.lock, size: 14, color: Colors.grey[700]),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Month closed - No further changes allowed',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[700],
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 );
               },
@@ -128,18 +261,24 @@ class _InfoItem extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
+  final bool isGrayed;
 
   const _InfoItem({
     required this.label,
     required this.value,
     required this.icon,
+    this.isGrayed = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: Colors.grey[600]),
+        Icon(
+          icon,
+          size: 16,
+          color: isGrayed ? Colors.grey[500] : Colors.grey[600],
+        ),
         const SizedBox(width: 4),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -147,13 +286,14 @@ class _InfoItem extends StatelessWidget {
             Text(
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.grey[600],
+                color: isGrayed ? Colors.grey[500] : Colors.grey[600],
               ),
             ),
             Text(
               value,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.bold,
+                color: isGrayed ? Colors.grey[700] : null,
               ),
             ),
           ],

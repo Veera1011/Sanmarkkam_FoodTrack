@@ -7,7 +7,6 @@ import '../../providers/auth_provider.dart';
 import '../../providers/items_provider.dart';
 import '../../providers/usage_provider.dart';
 
-
 class AddUsageScreen extends ConsumerStatefulWidget {
   const AddUsageScreen({super.key});
 
@@ -36,8 +35,11 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
     return date1.year == date2.year && date1.month == date2.month;
   }
 
-  List<FoodItem> _filterItemsByMonth(List<FoodItem> allItems, DateTime targetDate) {
-    return allItems.where((item) => _isSameMonth(item.datePurchased, targetDate)).toList();
+  List<FoodItem> _filterItemsByMonth(
+      List<FoodItem> allItems, DateTime targetDate) {
+    return allItems
+        .where((item) => _isSameMonth(item.datePurchased, targetDate))
+        .toList();
   }
 
   Future<void> _selectDate() async {
@@ -100,10 +102,11 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
 
     // Get usage entries for this specific item in the same month
     final usageAsync = await ref.read(usageProvider.future);
-    final monthlyUsage = usageAsync.where((usage) =>
+    final monthlyUsage = usageAsync
+        .where((usage) =>
     usage.itemId == itemId &&
-        _isSameMonth(usage.dateUsed, item.datePurchased)
-    ).toList();
+        _isSameMonth(usage.dateUsed, item.datePurchased))
+        .toList();
 
     // Calculate total used from this month's stock
     final totalUsed = monthlyUsage.fold<double>(
@@ -112,7 +115,8 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
     );
 
     final remaining = item.quantityPurchased - totalUsed;
-    print('📊 Item: ${item.name}, Purchased: ${item.quantityPurchased}, Used this month: $totalUsed, Remaining: $remaining');
+    print(
+        '📊 Item: ${item.name}, Purchased: ${item.quantityPurchased}, Used this month: $totalUsed, Remaining: $remaining');
 
     return remaining;
   }
@@ -255,7 +259,8 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
                       children: [
                         const Text(
                           'Usage Month',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w500),
                         ),
                         Text(
                           monthFormat.format(_selectedDate),
@@ -271,7 +276,8 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
                     TextButton.icon(
                       onPressed: _selectDate,
                       icon: const Icon(Icons.edit_calendar, size: 16),
-                      label: const Text('Change', style: TextStyle(fontSize: 12)),
+                      label:
+                      const Text('Change', style: TextStyle(fontSize: 12)),
                     ),
                   ],
                 ),
@@ -295,7 +301,8 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.warning_amber, color: Colors.orange),
+                              const Icon(Icons.warning_amber,
+                                  color: Colors.orange),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
@@ -329,7 +336,9 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
                                 const SizedBox(height: 8),
                                 ...allItems.take(3).map((item) => Text(
                                   '• ${item.name} (${monthFormat.format(item.datePurchased)})',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[700]),
                                 )),
                               ],
                             ),
@@ -348,7 +357,8 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
                         labelText: 'Select Item',
                         border: const OutlineInputBorder(),
                         prefixIcon: const Icon(Icons.inventory),
-                        helperText: 'Items from ${monthFormat.format(_selectedDate)}',
+                        helperText:
+                        'Items from ${monthFormat.format(_selectedDate)}',
                         helperMaxLines: 2,
                       ),
                       items: monthItems.map((item) {
@@ -390,13 +400,15 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.info_outline, size: 16, color: Colors.blue[700]),
+                              Icon(Icons.info_outline,
+                                  size: 16, color: Colors.blue[700]),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   'Showing ${monthItems.length} items for this month. '
                                       '${allItems.length - monthItems.length} items available in other months.',
-                                  style: TextStyle(fontSize: 11, color: Colors.blue[700]),
+                                  style: TextStyle(
+                                      fontSize: 11, color: Colors.blue[700]),
                                 ),
                               ),
                             ],
@@ -450,9 +462,11 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
                       ),
                       const SizedBox(height: 8),
                       FutureBuilder<double>(
-                        future: _getRemainingQuantityForMonth(_selectedItem!.id),
+                        future:
+                        _getRemainingQuantityForMonth(_selectedItem!.id),
                         builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
                             return const Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -460,7 +474,8 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
                                 SizedBox(
                                   width: 16,
                                   height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child:
+                                  CircularProgressIndicator(strokeWidth: 2),
                                 ),
                               ],
                             );
@@ -478,18 +493,25 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
                               _buildInfoRow(
                                 'Available Stock',
                                 '${remaining.toStringAsFixed(2)} kg',
-                                color: remaining > 0 ? Colors.green : Colors.red,
+                                color:
+                                remaining > 0 ? Colors.green : Colors.red,
                               ),
                               const SizedBox(height: 8),
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(4),
                                 child: LinearProgressIndicator(
-                                  value: remaining / _selectedItem!.quantityPurchased,
+                                  value: remaining /
+                                      _selectedItem!.quantityPurchased,
                                   backgroundColor: Colors.grey[300],
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                    remaining > _selectedItem!.quantityPurchased * 0.5
+                                    remaining >
+                                        _selectedItem!.quantityPurchased *
+                                            0.5
                                         ? Colors.green
-                                        : remaining > _selectedItem!.quantityPurchased * 0.2
+                                        : remaining >
+                                        _selectedItem!
+                                            .quantityPurchased *
+                                            0.2
                                         ? Colors.orange
                                         : Colors.red,
                                   ),
@@ -517,7 +539,8 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
                 helperText: 'Enter the amount used from this month\'s stock',
                 helperMaxLines: 2,
               ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+              const TextInputType.numberWithOptions(decimal: true),
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Please enter quantity';
@@ -568,7 +591,8 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
                           fillColor: Colors.white,
                           helperMaxLines: 2,
                         ),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
                         validator: (value) {
                           if (_overridePrice) {
                             if (value == null || value.isEmpty) {
@@ -673,12 +697,14 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.inventory_2, size: 14, color: Colors.grey[600]),
+                          Icon(Icons.inventory_2,
+                              size: 14, color: Colors.grey[600]),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
                               'From ${monthFormat.format(_selectedItem!.datePurchased)} stock',
-                              style: TextStyle(fontSize: 11, color: Colors.grey[700]),
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.grey[700]),
                             ),
                           ),
                         ],
@@ -708,7 +734,8 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
 
             // Save Button
             FilledButton.icon(
-              onPressed: _isLoading || _availableItems.isEmpty ? null : _saveUsage,
+              onPressed:
+              _isLoading || _availableItems.isEmpty ? null : _saveUsage,
               icon: _isLoading
                   ? const SizedBox(
                 height: 20,
