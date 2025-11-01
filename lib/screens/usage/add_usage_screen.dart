@@ -23,6 +23,7 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
   bool _isLoading = false;
   bool _overridePrice = false;
   List<FoodItem> _availableItems = [];
+  Map<String, double> _remainingStocks = {};
 
   @override
   void dispose() {
@@ -35,11 +36,44 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
     return date1.year == date2.year && date1.month == date2.month;
   }
 
-  List<FoodItem> _filterItemsByMonth(
-      List<FoodItem> allItems, DateTime targetDate) {
-    return allItems
-        .where((item) => _isSameMonth(item.datePurchased, targetDate))
-        .toList();
+  Future<void> _loadRemainingStocks(List<FoodItem> items) async {
+    final user = ref.read(currentUserProvider);
+    if (user == null) return;
+
+    final stocks = <String, double>{};
+    for (final item in items) {
+      final remaining = await _getRemainingQuantityForMonth(item.id);
+      stocks[item.id] = remaining;
+    }
+
+    if (mounted) {
+      setState(() {
+        _remainingStocks = stocks;
+      });
+    }
+  }
+
+  List<FoodItem> _filterAndSortItems(List<FoodItem> allItems) {
+    // Filter: only items with same name and available stock, excluding closed months
+    final itemsByName = <String, List<FoodItem>>{};
+
+    for (final item in allItems) {
+      if (!item.isMonthClosed && (_remainingStocks[item.id] ?? 0) > 0) {
+        if (!itemsByName.containsKey(item.name)) {
+          itemsByName[item.name] = [];
+        }
+        itemsByName[item.name]!.add(item);
+      }
+    }
+
+    // Sort each name group by purchase date (oldest first)
+    final sortedItems = <FoodItem>[];
+    for (final items in itemsByName.values) {
+      items.sort((a, b) => a.datePurchased.compareTo(b.datePurchased));
+      sortedItems.addAll(items);
+    }
+
+    return sortedItems;
   }
 
   Future<void> _selectDate() async {
@@ -52,18 +86,6 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
     if (picked != null) {
       setState(() {
         _selectedDate = picked;
-        // Reset selected item as it might not be available in the new month
-        _selectedItem = null;
-        _quantityController.clear();
-        _priceController.clear();
-
-        // Refresh available items for new month
-        final itemsAsync = ref.read(itemsProvider);
-        itemsAsync.whenData((items) {
-          setState(() {
-            _availableItems = _filterItemsByMonth(items, _selectedDate);
-          });
-        });
       });
     }
   }
@@ -96,11 +118,9 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
     final user = ref.read(currentUserProvider);
     if (user == null) return 0;
 
-    // Get the item
     final itemsAsync = await ref.read(itemsProvider.future);
     final item = itemsAsync.firstWhere((i) => i.id == itemId);
 
-    // Get usage entries for this specific item in the same month
     final usageAsync = await ref.read(usageProvider.future);
     final monthlyUsage = usageAsync
         .where((usage) =>
@@ -108,16 +128,12 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
         _isSameMonth(usage.dateUsed, item.datePurchased))
         .toList();
 
-    // Calculate total used from this month's stock
     final totalUsed = monthlyUsage.fold<double>(
       0.0,
           (sum, usage) => sum + usage.quantityUsed,
     );
 
     final remaining = item.quantityPurchased - totalUsed;
-    print(
-        '📊 Item: ${item.name}, Purchased: ${item.quantityPurchased}, Used this month: $totalUsed, Remaining: $remaining');
-
     return remaining;
   }
 
@@ -140,7 +156,6 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
       final unitPrice = double.parse(_priceController.text);
       final expense = quantityUsed * unitPrice;
 
-      // Check if enough quantity is available in this month's stock
       final remaining = await _getRemainingQuantityForMonth(_selectedItem!.id);
 
       if (quantityUsed > remaining) {
@@ -204,8 +219,8 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
   @override
   Widget build(BuildContext context) {
     final itemsAsync = ref.watch(itemsProvider);
-    final monthFormat = DateFormat('MMMM yyyy');
     final dateFormat = DateFormat('dd MMM yyyy');
+    final monthFormat = DateFormat('MMM yyyy');
 
     return Scaffold(
       appBar: AppBar(
@@ -217,14 +232,16 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
-                  title: const Text('Month-Based Usage'),
+                  title: const Text('FIFO Stock Usage'),
                   content: const Text(
-                    'Usage is tracked per month:\n\n'
-                        '• Only items from the selected usage month are shown\n'
-                        '• Stock is reduced from that specific month\n'
-                        '• Each month\'s inventory is tracked separately\n\n'
-                        'Example: Using "Rice" on Oct 15 will reduce October\'s rice stock, '
-                        'not November\'s stock.\n\n'
+                    'First In, First Out (FIFO) Method:\n\n'
+                        '• Always use oldest stock first\n'
+                        '• Items are sorted by purchase date\n'
+                        '• Dropdown shows all available stocks with dates\n'
+                        '• Oldest stock appears first for each item\n'
+                        '• Only items with remaining stock are shown\n\n'
+                        'Example:\n'
+                        'If you have Rice from Oct and Nov, use October stock first before moving to November stock.\n\n'
                         'Price Override: By default, uses the purchase price. '
                         'Enable override if current market price differs.',
                   ),
@@ -245,39 +262,37 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Month Indicator
+            // FIFO Notice
             Card(
-              color: Colors.purple[50],
+              color: Colors.blue[50],
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
-                    Icon(Icons.calendar_month, color: Colors.purple[700]),
+                    Icon(Icons.priority_high, color: Colors.blue[700]),
                     const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Usage Month',
-                          style: TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w500),
-                        ),
-                        Text(
-                          monthFormat.format(_selectedDate),
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.purple[700],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'FIFO Stock Management',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue[700],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    TextButton.icon(
-                      onPressed: _selectDate,
-                      icon: const Icon(Icons.edit_calendar, size: 16),
-                      label:
-                      const Text('Change', style: TextStyle(fontSize: 12)),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Always select the oldest stock first (First In, First Out)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.blue[700],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -288,11 +303,14 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
             // Item Selection
             itemsAsync.when(
               data: (allItems) {
-                // Filter items for current month
-                final monthItems = _filterItemsByMonth(allItems, _selectedDate);
-                _availableItems = monthItems;
+                if (_remainingStocks.isEmpty) {
+                  _loadRemainingStocks(allItems);
+                }
 
-                if (monthItems.isEmpty) {
+                final availableItems = _filterAndSortItems(allItems);
+                _availableItems = availableItems;
+
+                if (availableItems.isEmpty) {
                   return Card(
                     color: Colors.orange[50],
                     child: Padding(
@@ -304,10 +322,10 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
                               const Icon(Icons.warning_amber,
                                   color: Colors.orange),
                               const SizedBox(width: 12),
-                              Expanded(
+                              const Expanded(
                                 child: Text(
-                                  'No items found for ${monthFormat.format(_selectedDate)}',
-                                  style: const TextStyle(
+                                  'No items with available stock',
+                                  style: TextStyle(
                                     color: Colors.orange,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -317,31 +335,9 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
                           ),
                           const SizedBox(height: 12),
                           const Text(
-                            'You need to add items for this month before recording usage.',
+                            'All items are either fully consumed or from closed months.',
                             style: TextStyle(fontSize: 13),
                           ),
-                          const SizedBox(height: 12),
-                          if (allItems.isNotEmpty)
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Divider(),
-                                const Text(
-                                  'Available in other months:',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                ...allItems.take(3).map((item) => Text(
-                                  '• ${item.name} (${monthFormat.format(item.datePurchased)})',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[700]),
-                                )),
-                              ],
-                            ),
                         ],
                       ),
                     ),
@@ -354,29 +350,133 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
                     DropdownButtonFormField<FoodItem>(
                       value: _selectedItem,
                       decoration: InputDecoration(
-                        labelText: 'Select Item',
+                        labelText: 'Select Item & Stock',
                         border: const OutlineInputBorder(),
                         prefixIcon: const Icon(Icons.inventory),
-                        helperText:
-                        'Items from ${monthFormat.format(_selectedDate)}',
+                        helperText: 'Select oldest stock first (FIFO)',
                         helperMaxLines: 2,
                       ),
-                      items: monthItems.map((item) {
+                      isExpanded: true,
+                      items: availableItems.map((item) {
+                        final remaining = _remainingStocks[item.id] ?? 0;
+                        final isOldest = _isOldestStock(item, availableItems);
+
                         return DropdownMenuItem(
                           value: item,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(item.name),
-                              Text(
-                                'Purchase price: ₹${item.unitPrice.toStringAsFixed(2)}/kg',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey[600],
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        item.name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                    if (isOldest)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green[100],
+                                          borderRadius:
+                                          BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          'USE FIRST',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.green[700],
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    Icon(Icons.calendar_today,
+                                        size: 11, color: Colors.grey[600]),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Purchased: ${dateFormat.format(item.datePurchased)}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey[700],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Icon(Icons.event,
+                                        size: 11, color: Colors.grey[600]),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      monthFormat.format(item.datePurchased),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.blue[700],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    Text(
+                                      '₹${item.unitPrice.toStringAsFixed(2)}/kg',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      '•',
+                                      style: TextStyle(color: Colors.grey[400]),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Available: ${remaining.toStringAsFixed(2)} kg',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: remaining > 0
+                                            ? Colors.green[700]
+                                            : Colors.red[700],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (item.isCarriedForward) ...[
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.forward,
+                                          size: 10, color: Colors.blue[600]),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Carried forward from previous month',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontStyle: FontStyle.italic,
+                                          color: Colors.blue[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
                         );
                       }).toList(),
@@ -387,32 +487,35 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
                         }
                         return null;
                       },
+                      menuMaxHeight: 400,
                     ),
-                    if (monthItems.length < allItems.length)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.blue[50],
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.blue[200]!),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.info_outline,
-                                  size: 16, color: Colors.blue[700]),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Showing ${monthItems.length} items for this month. '
-                                      '${allItems.length - monthItems.length} items available in other months.',
-                                  style: TextStyle(
-                                      fontSize: 11, color: Colors.blue[700]),
+                    const SizedBox(height: 8),
+                    // FIFO Warning for non-oldest selection
+                    if (_selectedItem != null &&
+                        !_isOldestStock(_selectedItem!, availableItems))
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.orange[50],
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.orange[300]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.warning_amber,
+                                size: 16, color: Colors.orange[700]),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '⚠️ Consider using older stock first (FIFO principle)',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.orange[900],
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                   ],
@@ -437,7 +540,7 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
                           Icon(Icons.info, color: Colors.blue[700], size: 20),
                           const SizedBox(width: 8),
                           Text(
-                            'Item Information',
+                            'Selected Stock Information',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Colors.blue[700],
@@ -446,6 +549,11 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
                         ],
                       ),
                       const Divider(height: 16),
+                      _buildInfoRow(
+                        'Purchase Date',
+                        dateFormat.format(_selectedItem!.datePurchased),
+                      ),
+                      const SizedBox(height: 8),
                       _buildInfoRow(
                         'Stock Month',
                         monthFormat.format(_selectedItem!.datePurchased),
@@ -536,7 +644,7 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.scale),
                 suffixText: 'kg',
-                helperText: 'Enter the amount used from this month\'s stock',
+                helperText: 'Enter the amount to use from this stock',
                 helperMaxLines: 2,
               ),
               keyboardType:
@@ -702,7 +810,7 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
-                              'From ${monthFormat.format(_selectedItem!.datePurchased)} stock',
+                              'From ${monthFormat.format(_selectedItem!.datePurchased)} stock (${dateFormat.format(_selectedItem!.datePurchased)})',
                               style: TextStyle(
                                   fontSize: 11, color: Colors.grey[700]),
                             ),
@@ -755,6 +863,15 @@ class _AddUsageScreenState extends ConsumerState<AddUsageScreen> {
         ),
       ),
     );
+  }
+
+  bool _isOldestStock(FoodItem item, List<FoodItem> allItems) {
+    // Check if this is the oldest stock for this item name
+    final sameNameItems = allItems.where((i) => i.name == item.name).toList();
+    if (sameNameItems.isEmpty) return false;
+
+    sameNameItems.sort((a, b) => a.datePurchased.compareTo(b.datePurchased));
+    return sameNameItems.first.id == item.id;
   }
 
   Widget _buildInfoRow(String label, String value, {Color? color}) {
