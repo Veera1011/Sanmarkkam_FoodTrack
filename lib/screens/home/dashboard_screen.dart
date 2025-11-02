@@ -11,6 +11,8 @@ import '../items/add_item_screen.dart';
 import '../usage/add_usage_screen.dart';
 import '../expenses/expense_summary_screen.dart';
 import '../items/month_closing_screen.dart';
+import '../reports/excel_export_screen.dart';
+import '../meals/meal_services_screen.dart';
 
 enum DashboardPeriod { today, thisMonth, thisYear, custom, all }
 
@@ -138,11 +140,82 @@ List<UsageEntry> _filterUsageByPeriod(
   }).toList();
 }
 
-class DashboardScreen extends ConsumerWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  int _selectedIndex = 0;
+
+  Future<void> _showLogoutDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Do you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await ref.read(authServiceProvider).signOut();
+    }
+  }
+
+  void _onBottomNavTap(int index) {
+    if (index == _selectedIndex) return;
+
+    setState(() => _selectedIndex = index);
+
+    switch (index) {
+      case 1: // Analytics
+        Navigator.of(context)
+            .push(
+          MaterialPageRoute(builder: (_) => const ExpenseSummaryScreen()),
+        )
+            .then((_) => setState(() => _selectedIndex = 0));
+        break;
+      case 2: // Export
+        Navigator.of(context)
+            .push(
+          MaterialPageRoute(builder: (_) => const ExcelExportScreen()),
+        )
+            .then((_) => setState(() => _selectedIndex = 0));
+        break;
+      case 3: // Close Month
+        Navigator.of(context)
+            .push(
+          MaterialPageRoute(builder: (_) => const MonthClosingScreen()),
+        )
+            .then((_) => setState(() => _selectedIndex = 0));
+        break;
+      case 4: // Close Month
+        Navigator.of(context)
+            .push(
+          MaterialPageRoute(builder: (_) => const MealServicesScreen()),
+        )
+            .then((_) => setState(() => _selectedIndex = 0));
+        break;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final filteredItemsAsync = ref.watch(filteredItemsProvider);
     final filteredExpensesAsync = ref.watch(filteredExpensesProvider);
     final selectedPeriod = ref.watch(dashboardPeriodProvider);
@@ -158,34 +231,27 @@ class DashboardScreen extends ConsumerWidget {
               height: 32,
             ),
             const SizedBox(width: 8),
-            const Text('FoodTrack'),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.analytics_outlined),
-            tooltip: 'View Analytics',
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
             onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const ExpenseSummaryScreen()),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.event_available),
-            tooltip: 'Close Month',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const MonthClosingScreen()),
+              ref.invalidate(itemsProvider);
+              ref.invalidate(usageProvider);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Data refreshed'),
+                  duration: Duration(seconds: 1),
+                ),
               );
             },
           ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Logout',
-            onPressed: () async {
-              await ref.read(authServiceProvider).signOut();
-            },
+            onPressed: _showLogoutDialog,
           ),
         ],
       ),
@@ -420,6 +486,35 @@ class DashboardScreen extends ConsumerWidget {
         },
         icon: const Icon(Icons.add),
         label: const Text('Add Item'),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _onBottomNavTap,
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
+        unselectedItemColor: Colors.grey[600],
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.analytics),
+            label: 'Analytics',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.file_download),
+            label: 'Export',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.event_available),
+            label: 'Close Month',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.room_service_outlined),
+            label: 'Service',
+          ),
+        ],
       ),
     );
   }

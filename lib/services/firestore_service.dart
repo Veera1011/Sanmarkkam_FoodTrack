@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/food_item.dart';
 import '../models/usage_entry.dart';
+import '../models/meal_service.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -341,5 +342,88 @@ class FirestoreService {
     }
 
     await _itemsCollection(userId).doc(itemId).delete();
+  }
+  // Add these methods to lib/services/firestore_service.dart
+
+  // Meal Services Collection
+  CollectionReference _mealServicesCollection(String userId) {
+    return _db.collection('users').doc(userId).collection('meal_services');
+  }
+
+  // Add meal service
+  Future<void> addMealService(String userId, MealService mealService) async {
+    await _mealServicesCollection(userId).add(mealService.toMap());
+  }
+
+  // Update meal service
+  Future<void> updateMealService(String userId, MealService mealService) async {
+    await _mealServicesCollection(userId).doc(mealService.id).update(mealService.toMap());
+  }
+
+  // Delete meal service
+  Future<void> deleteMealService(String userId, String mealServiceId) async {
+    await _mealServicesCollection(userId).doc(mealServiceId).delete();
+  }
+
+  // Get all meal services stream
+  Stream<List<MealService>> getMealServices(String userId) {
+    return _mealServicesCollection(userId)
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snapshot) =>
+        snapshot.docs.map((doc) => MealService.fromFirestore(doc)).toList());
+  }
+
+  // Get meal services by date range
+  Stream<List<MealService>> getMealServicesByDateRange(
+      String userId,
+      DateTime startDate,
+      DateTime endDate,
+      ) {
+    final normalizedStart = DateTime(startDate.year, startDate.month, startDate.day, 0, 0, 0);
+    final normalizedEnd = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59, 999);
+
+    return _mealServicesCollection(userId)
+        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(normalizedStart))
+        .where('date', isLessThanOrEqualTo: Timestamp.fromDate(normalizedEnd))
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snapshot) =>
+        snapshot.docs.map((doc) => MealService.fromFirestore(doc)).toList());
+  }
+
+  // Get today's meal services
+  Stream<List<MealService>> getTodaysMealServices(String userId) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day, 0, 0, 0);
+    final tomorrow = DateTime(now.year, now.month, now.day + 1, 0, 0, 0);
+
+    return _mealServicesCollection(userId)
+        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(today))
+        .where('date', isLessThan: Timestamp.fromDate(tomorrow))
+        .orderBy('date', descending: false)
+        .snapshots()
+        .map((snapshot) =>
+        snapshot.docs.map((doc) => MealService.fromFirestore(doc)).toList());
+  }
+
+  // Check if meal service exists for a specific date and meal type
+  Future<MealService?> getMealServiceByDateAndType(
+      String userId,
+      DateTime date,
+      MealType mealType,
+      ) async {
+    final normalizedDate = DateTime(date.year, date.month, date.day, 0, 0, 0);
+    final nextDay = DateTime(date.year, date.month, date.day + 1, 0, 0, 0);
+
+    final snapshot = await _mealServicesCollection(userId)
+        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(normalizedDate))
+        .where('date', isLessThan: Timestamp.fromDate(nextDay))
+        .where('mealType', isEqualTo: mealType.toString())
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isEmpty) return null;
+    return MealService.fromFirestore(snapshot.docs.first);
   }
 }
